@@ -1,0 +1,61 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary cameraSettings = {
+            string boundCamera = "/World/Camera"
+        }
+    }
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def "World"
+{
+    def PhysicsScene "PhysicsScene"
+    {
+        vector3f physics:gravityDirection = (0, 0, -1)
+        float physics:gravityMagnitude = 9.81
+        custom uint physxScene:timeStepsPerSecond = 120
+    }
+
+    over "Faucet" (
+        prepend references = @./single_lever_faucet.usd@
+    )
+    {
+    }
+
+    def Cube "Counter" (
+        prepend apiSchemas = ["PhysicsCollisionAPI"]
+    )
+    {
+        color3f[] primvars:displayColor = [(0.16, 0.18, 0.2)]
+        double size = 1
+        float3 xformOp:scale = (0.55, 0.45, 0.036)
+        double3 xformOp:translate = (0, 0, -0.018)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+
+    def RectLight "KeyLight"
+    {
+        float inputs:height = 0.7
+        float inputs:intensity = 1800
+        float inputs:width = 0.7
+        double3 xformOp:translate = (0.2, 0.3, 0.8)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def DomeLight "FillLight"
+    {
+        float inputs:intensity = 600
+    }
+
+    def Camera "Camera"
+    {
+        float2 clippingRange = (0.001, 100)
+        float focalLength = 55
+        matrix4d xformOp:transform = ( (-0.7661915431257926, 0.6426122619764713, 0, 0), (-0.19199221193750457, -0.22891379115625538, 0.9543256607541343, 0), (0.6132613715194047, 0.7311962506577515, 0.29876836048381256, -0), (0.39000000000000007, 0.5, 0.31, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+    }
+}
+

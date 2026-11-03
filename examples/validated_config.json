@@ -1,0 +1,89 @@
+{
+  "robot_usd": "dual_arm/urdf/dual_arm.usd",
+  "faucet_usd": "single_lever_faucet/single_lever_faucet.usd",
+  "robot_position": [
+    0.17,
+    0.55,
+    0.95
+  ],
+  "robot_yaw_deg": -90.0,
+  "faucet_position": [
+    0.0,
+    0.0,
+    0.48
+  ],
+  "faucet_yaw_deg": 0.0,
+  "home_right_deg": [
+    0,
+    -15,
+    0,
+    100,
+    0,
+    -60,
+    0
+  ],
+  "tcp_in_gripper": [
+    0.0,
+    -0.0045,
+    -0.12
+  ],
+  "grasp_in_handle": [
+    0.0,
+    0.075,
+    0.0263
+  ],
+  "gripper_rpy_in_handle_deg": [
+    -90.0,
+    0.0,
+    0.0
+  ],
+  "finger_open_deg": 12.0,
+  "finger_closed_deg": 0.0,
+  "pregrasp_distance": 0.1,
+  "physics_dt": 0.004166666666666667,
+  "knot_dt": 0.1,
+  "max_joint_velocity": 1.0,
+  "max_joint_acceleration": 2.5,
+  "transit_duration": 4.0,
+  "approach_duration": 2.5,
+  "grasp_duration": 1.5,
+  "retreat_duration": 3.0,
+  "operations": [
+    {
+      "name": "打开到20度",
+      "yaw_deg": 0,
+      "lift_deg": 20,
+      "duration": 3
+    },
+    {
+      "name": "向冷水侧旋转25度",
+      "yaw_deg": -25,
+      "lift_deg": 20,
+      "duration": 3
+    },
+    {
+      "name": "向热水侧旋转30度",
+      "yaw_deg": 30,
+      "lift_deg": 20,
+      "duration": 4
+    },
+    {
+      "name": "增大开度到32度",
+      "yaw_deg": 30,
+      "lift_deg": 32,
+      "duration": 2.5
+    },
+    {
+      "name": "减小开度到12度",
+      "yaw_deg": 30,
+      "lift_deg": 12,
+      "duration": 2.5
+    },
+    {
+      "name": "居中并关闭",
+      "yaw_deg": 0,
+      "lift_deg": 0,
+      "duration": 4
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# Python 与本机仿真生成文件；原始 USD/URDF/STL 资产不忽略。
+__pycache__/
+*.py[cod]
+.pytest_cache/
+outputs/
+
+# 本机工具状态与凭据文件不提交到公开仓库。
+.agents/
+.codex/
+.aws/
+.ssh/
+.env
+.env.*
+!.env.example
+.venv/
+.DS_Store

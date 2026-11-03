@@ -1,0 +1,54 @@
+{
+  "passed": true,
+  "physics_descriptors": {
+    "MeshShape": 5,
+    "Articulation": 1,
+    "RigidBody": 3,
+    "FixedJoint": 1,
+    "RevoluteJoint": 2
+  },
+  "limits_degrees": {
+    "temperature_yaw": [
+      -45.0,
+      45.0
+    ],
+    "flow_lift": [
+      0.0,
+      35.0
+    ]
+  },
+  "control_checks": [
+    {
+      "opening": 0.0,
+      "temperature_c": 40.0,
+      "yaw_deg": 0.0,
+      "lift_deg": 0.0
+    },
+    {
+      "opening": 1.0,
+      "temperature_c": 20.0,
+      "yaw_deg": -45.0,
+      "lift_deg": 35.0
+    },
+    {
+      "opening": 1.0,
+      "temperature_c": 60.0,
+      "yaw_deg": 45.0,
+      "lift_deg": 35.0
+    },
+    {
+      "opening": 0.5,
+      "temperature_c": 40.0,
+      "yaw_deg": 0.0,
+      "lift_deg": 17.5
+    }
+  ],
+  "joint_frames_aligned": true,
+  "inertias_positive": true,
+  "lift_raises_handle_tip": true,
+  "yaw_preserves_lift_height": true,
+  "asset_external_files": [],
+  "isaac_sim_runtime_tested": false,
+  "runtime_note": "Isaac Sim is not installed in the available environment; checked with OpenUSD 25.5 physics parser, not a PhysX simulation.",
+  "sha256": "23069671fe9f49d74f04efd01e65f4cd412665df5baf72a752726017794a7771"
+}
