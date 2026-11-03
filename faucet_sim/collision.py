@@ -100,9 +100,13 @@ class ContactMonitor:
         stage = world.stage
         for path in GRIPPER_PATHS:
             PhysxSchema.PhysxContactReportAPI.Apply(stage.GetPrimAtPath(path)).CreateThresholdAttr(0.)
-        self.subscription = get_physx_simulation_interface().subscribe_contact_report_events(self.on_contact)
+        self.physics_dt = float(world.get_physics_dt())
+        self.subscription = get_physx_simulation_interface().subscribe_full_contact_report_events(self.on_contact)
         self.max_penetration = 0.
         self.handle_contact_steps = 0
+        self.max_normal_force = 0.
+        self.max_friction_force = 0.
+        self.total_friction_impulse = 0.
         self.pairs = set()
         self.begin_step()
 
@@ -110,12 +114,16 @@ class ContactMonitor:
         """清零本物理步计数，保留全程最大穿透统计。"""
         self.depth, self.handle_count, self.impulse = 0., 0, 0.
         self.fixed_count, self.moving_count = 0, 0
+        self.callback_batches = 0
+        self.fixed_impulse, self.moving_impulse, self.friction_impulse = 0., 0., 0.
         self.last = {'contact_points': 0, 'contact_impulse_ns': 0., 'penetration_mm': 0.,
-                     'fixed_contact_points': 0, 'moving_contact_points': 0}
+                     'fixed_contact_points': 0, 'moving_contact_points': 0,
+                     'fixed_normal_force_n': 0., 'moving_normal_force_n': 0., 'friction_force_n': 0.}
 
-    def on_contact(self, headers, contacts):
+    def on_contact(self, headers, contacts, friction_anchors):
         """由 PhysX 回调提供接触点；同时覆盖把手、龙头主体和台面等对象。"""
         from pxr import PhysicsSchemaTools
+        self.callback_batches += 1
         for header in headers:
             actors = [str(PhysicsSchemaTools.intToSdfPath(actor)) for actor in [header.actor0, header.actor1]]
             if not any(actor in GRIPPER_PATHS for actor in actors):
@@ -131,18 +139,31 @@ class ContactMonitor:
                     self.handle_count += 1
                     if GRIPPER_PATHS[0] in actors:
                         self.fixed_count += 1
+                        self.fixed_impulse += float(np.linalg.norm(contact.impulse))
                     if GRIPPER_PATHS[1] in actors:
                         self.moving_count += 1
+                        self.moving_impulse += float(np.linalg.norm(contact.impulse))
                     self.impulse += float(np.linalg.norm(contact.impulse))
+            if HANDLE_PATH in actors:
+                first, count = header.friction_anchors_offset, header.num_friction_anchors_data
+                for anchor in friction_anchors[first:first+count]:
+                    self.friction_impulse += float(np.linalg.norm(anchor.impulse))
 
     def sample(self):
         """返回接触点数量、冲量和穿透深度；穿透大于 0.8 mm 则失败。"""
         self.max_penetration = max(self.max_penetration, self.depth)
         if self.handle_count:
             self.handle_contact_steps += 1
+        elapsed = self.physics_dt * max(1, self.callback_batches)
+        fixed_force, moving_force = self.fixed_impulse/elapsed, self.moving_impulse/elapsed
+        friction_force = self.friction_impulse/elapsed
+        self.max_normal_force = max(self.max_normal_force, fixed_force, moving_force)
+        self.max_friction_force = max(self.max_friction_force, friction_force)
+        self.total_friction_impulse += self.friction_impulse
         self.last = {'contact_points': self.handle_count, 'contact_impulse_ns': self.impulse,
                      'penetration_mm': self.depth * 1000., 'fixed_contact_points': self.fixed_count,
-                     'moving_contact_points': self.moving_count}
+                     'moving_contact_points': self.moving_count, 'fixed_normal_force_n': fixed_force,
+                     'moving_normal_force_n': moving_force, 'friction_force_n': friction_force}
         if self.depth > .0008:
             raise RuntimeError(f'夹爪碰撞穿透超过容限：{self.depth*1000:.3f} mm')
         return self.last

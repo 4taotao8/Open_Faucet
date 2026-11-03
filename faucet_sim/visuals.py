@@ -31,7 +31,7 @@ class SimulationDisplay:
             self.window = ui.Window('Faucet trajectory demo', width=350, height=200)
             with self.window.frame:
                 with ui.VStack(spacing=6):
-                    ui.Label('Right arm | planned trajectories | ideal grasp')
+                    ui.Label('Right arm | friction contact | no attachment')
                     self.phase_label = ui.Label('Preparing')
                     self.angle_label = ui.Label('Yaw: 0 deg | Lift: 0 deg')
                     self.flow_label = ui.Label('Flow: 0 L/min | Closed')
@@ -47,5 +47,5 @@ class SimulationDisplay:
             self.angle_label.text = f'Yaw: {np.rad2deg(yaw):.1f} deg | Lift: {np.rad2deg(lift):.1f} deg'
             temperature = 'Closed' if state['temperature_c'] is None else f"{state['temperature_c']:.1f} C"
             self.flow_label.text = f"Flow: {state['flow_lpm']:.2f} L/min | {temperature}"
-            self.grasp_label.text = 'Grasp: attached (ideal constraint)' if grasp_active else 'Grasp: released'
+            self.grasp_label.text = 'Grasp: friction contact (no attachment)' if grasp_active else 'Grasp: released'
         return state

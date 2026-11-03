@@ -9,6 +9,7 @@ from faucet_sim.geometry import world_pose, pose_error
 from faucet_sim.kinematics import RightArmKinematics, FaucetKinematics
 from faucet_sim.planning import plan
 from faucet_sim.scene import build_scene
+from faucet_sim.grasp import FrictionGrasp
 
 
 class PlanningTests(unittest.TestCase):
@@ -99,6 +100,24 @@ class PlanningTests(unittest.TestCase):
                 self.assertTrue(prim.IsA(UsdGeom.Mesh))
                 points = np.array(UsdGeom.Mesh(prim).GetPointsAttr().Get())
                 self.assertLessEqual(float(np.ptp(points[:, 2])), .002001)
+
+    def test_friction_grasp_does_not_create_attachment(self):
+        """登记与释放抓取不能改变 USD；龙头驱动在场景层中也必须被动。"""
+        grasp = FrictionGrasp(self.stage, self.robot, self.faucet)
+        before = self.stage.GetRootLayer().ExportToString()
+        grasp.begin(self.segments[1].q[-1], np.zeros(2))
+        self.assertTrue(grasp.active)
+        self.assertEqual(grasp.assert_no_attachment(), [])
+        self.assertEqual(self.stage.GetRootLayer().ExportToString(), before)
+        state = grasp.observe(self.segments[1].q[-1], np.zeros(2))
+        self.assertLess(state['slip_mm'], 1e-6)
+        self.assertLess(state['slip_deg'], 1e-6)
+        grasp.release()
+        self.assertFalse(grasp.active)
+        self.assertEqual(self.stage.GetRootLayer().ExportToString(), before)
+        for name in ['temperature_yaw', 'flow_lift']:
+            drive = UsdPhysics.DriveAPI.Get(self.stage.GetPrimAtPath('/World/Faucet/joints/' + name), 'angular')
+            self.assertEqual(drive.GetStiffnessAttr().Get(), 0.)
 
 
 if __name__ == '__main__':

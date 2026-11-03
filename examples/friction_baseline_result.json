@@ -1,0 +1,170 @@
+{
+  "passed": true,
+  "mode": "physx_friction_only",
+  "capture": {
+    "capture_position_error_mm": 0.7005495478008091,
+    "capture_rotation_error_deg": 0.0985802886262608,
+    "attachment_joint_created": false,
+    "contact_points": 79,
+    "finger_actual_deg": 4.959537029266357
+  },
+  "endpoints": [
+    {
+      "phase": "打开到20度",
+      "target_deg": [
+        0.0,
+        20.0
+      ],
+      "actual_deg": [
+        -0.06602494418621063,
+        20.10011100769043
+      ],
+      "error_deg": [
+        -0.06602494408664063,
+        0.10011120839801192
+      ],
+      "passed": true
+    },
+    {
+      "phase": "向冷水侧旋转25度",
+      "target_deg": [
+        -25.0,
+        20.0
+      ],
+      "actual_deg": [
+        -24.8472900390625,
+        20.06719970703125
+      ],
+      "error_deg": [
+        0.15270924295719648,
+        0.06719994188230548
+      ],
+      "passed": true
+    },
+    {
+      "phase": "向热水侧旋转30度",
+      "target_deg": [
+        30.000000000000004,
+        20.0
+      ],
+      "actual_deg": [
+        29.763750076293945,
+        20.053457260131836
+      ],
+      "error_deg": [
+        -0.23624857837551952,
+        0.05345760127223982
+      ],
+      "passed": true
+    },
+    {
+      "phase": "增大开度到32度",
+      "target_deg": [
+        29.999999999999996,
+        32.0
+      ],
+      "actual_deg": [
+        30.6778507232666,
+        32.07170867919922
+      ],
+      "error_deg": [
+        0.6778527137202184,
+        0.07170990821222764
+      ],
+      "passed": true
+    },
+    {
+      "phase": "减小开度到12度",
+      "target_deg": [
+        29.999999999999996,
+        12.000000000000002
+      ],
+      "actual_deg": [
+        31.447397232055664,
+        12.033903121948242
+      ],
+      "error_deg": [
+        1.4473998822218,
+        0.03390368542307203
+      ],
+      "passed": true
+    },
+    {
+      "phase": "居中并关闭",
+      "target_deg": [
+        0.0,
+        0.0
+      ],
+      "actual_deg": [
+        1.7948265075683594,
+        0.08708052337169647
+      ],
+      "error_deg": [
+        1.794826651368784,
+        0.08708052965761892
+      ],
+      "passed": true
+    }
+  ],
+  "physics_steps": 10848,
+  "final_right_error_deg": [
+    -0.0206324006570218,
+    0.0062765264342127805,
+    -0.0056147248239445825,
+    -0.018707382112870492,
+    -0.006071642134561286,
+    0.002498179584108916,
+    0.002496716787407316
+  ],
+  "final_faucet_deg": [
+    0.7544917464256287,
+    -1.3918567631776568e-08
+  ],
+  "simulation_time_s": 45.200000000009005,
+  "collision_check": {
+    "enabled": true,
+    "max_penetration_mm": 0.0,
+    "handle_contact_steps": 7672,
+    "contact_pairs": [
+      [
+        "/World/Faucet/handle",
+        "/World/Robot/arm_r_link_finger"
+      ],
+      [
+        "/World/Faucet/handle",
+        "/World/Robot/arm_r_link_gripper"
+      ]
+    ]
+  },
+  "max_tcp_error_mm": 0.9931424126906534,
+  "max_rotation_error_deg": 0.23470284551771725,
+  "grasp_audit": {
+    "robot_faucet_attachment_joints": [],
+    "faucet_drive_stiffness": [
+      0.0,
+      0.0
+    ],
+    "faucet_drive_damping": [
+      0.0010000000474974513,
+      0.0010000000474974513
+    ],
+    "faucet_commands_after_initial_state": 0
+  },
+  "friction_parameters": {
+    "contact_static_friction": 1.0,
+    "contact_dynamic_friction": 0.8,
+    "finger_stiffness": 4.0,
+    "finger_damping": 1.0,
+    "finger_max_effort": 0.3,
+    "faucet_joint_damping": 0.001
+  },
+  "slip": {
+    "max_relative_translation_mm": 0.47032787127518627,
+    "max_relative_rotation_deg": 1.9139196056471055
+  },
+  "contact_forces": {
+    "max_normal_force_n": 145.07534080477848,
+    "max_friction_force_n": 123.93487725712885,
+    "total_friction_impulse_ns": 145.88849529220596
+  }
+}

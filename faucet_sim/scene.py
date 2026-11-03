@@ -61,6 +61,11 @@ def build_scene(config, destination):
     fixed.CreateLocalRot1Attr(Gf.Quatf(1))
     align_world_joint(stage, str(fixed.GetPath()), '/World/Robot/arm_base_link')
     align_world_joint(stage, '/World/Faucet/joints/world_fixed', '/World/Faucet/body')
+    # 整个回合禁用龙头位置驱动，只保留被动阻尼；接近/闭爪期间也不锁阀。
+    for name in ('temperature_yaw', 'flow_lift'):
+        drive = UsdPhysics.DriveAPI.Get(stage.GetPrimAtPath('/World/Faucet/joints/' + name), 'angular')
+        drive.CreateStiffnessAttr(0.)
+        drive.CreateDampingAttr(float(config.get('faucet_joint_damping', .001)))
     physics = UsdPhysics.Scene.Define(stage, '/World/PhysicsScene')
     physics.CreateGravityDirectionAttr(Gf.Vec3f(0, 0, -1))
     physics.CreateGravityMagnitudeAttr(9.81)
@@ -78,8 +83,8 @@ def build_scene(config, destination):
     key.AddRotateXYZOp().Set(Gf.Vec3f(-30, -30, 20))
     material = UsdShade.Material.Define(stage, '/World/ContactMaterial')
     contact = UsdPhysics.MaterialAPI.Apply(material.GetPrim())
-    contact.CreateStaticFrictionAttr(1.)
-    contact.CreateDynamicFrictionAttr(.8)
+    contact.CreateStaticFrictionAttr(float(config.get('contact_static_friction', 1.)))
+    contact.CreateDynamicFrictionAttr(float(config.get('contact_dynamic_friction', .8)))
     contact.CreateRestitutionAttr(0.)
     # 原资产已经关闭各 articulation 自碰撞；不同对象间保留碰撞。
     for prim in stage.Traverse():

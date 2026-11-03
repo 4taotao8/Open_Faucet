@@ -1,53 +1,62 @@
-"""理想刚性抓取：通过 PhysX 固定约束传力，不给把手写运动动画。"""
+"""纯接触/摩擦抓取状态与打滑测量，不创建机器人到龙头的物理约束。"""
 import numpy as np
-from scipy.spatial.transform import Rotation
-from pxr import Gf, UsdPhysics
-from .geometry import inverse, world_pose, pose_error
+from pxr import UsdPhysics
+from .geometry import inverse, pose_error
 
 
-def set_joint_frame(joint, side, transform):
-    """将局部抓取坐标系写入固定约束的指定端，side 为 0 或 1。"""
-    q = Rotation.from_matrix(transform[:3, :3]).as_quat()
-    getattr(joint, f'CreateLocalPos{side}Attr')(Gf.Vec3f(*transform[:3, 3]))
-    getattr(joint, f'CreateLocalRot{side}Attr')(Gf.Quatf(float(q[3]), Gf.Vec3f(*q[:3])))
+class FrictionGrasp:
+    """仅登记双侧接触形成的抓取，active 不影响刚体动力学。
 
-
-class IdealGrasp:
-    """闭爪且 TCP 到达抓取位姿后建约束；松爪前删除约束。
-
-    这是任务级理想无滑移抓取，不能据此认定摩擦夹持或夹爪力已经验证。
-    两个固定基 articulation 通过排除在树外的约束形成闭环。
+    不创建固定关节、D6、吸附，不写入把手位姿；打滑只测量不纠正。
     """
 
     def __init__(self, stage, robot_model, faucet_model):
+        """输入场景和运动学对象；抓取参考由实测关节角建立。"""
         self.stage, self.robot, self.faucet = stage, robot_model, faucet_model
-        self.path = '/World/GraspConstraint'
         self.active = False
+        self.reference = None
+        self.max_slip_mm = 0.
+        self.max_slip_deg = 0.
 
-    def attach(self, actual_q, actual_valve):
-        """输入物理反馈的角度，检查捕获窗口并建立约束；越界直接失败。"""
+    def assert_no_attachment(self):
+        """检查场景不存在连接机器人和水龙头的关节。"""
+        connections = []
+        for prim in self.stage.Traverse():
+            if not prim.IsA(UsdPhysics.Joint):
+                continue
+            joint = UsdPhysics.Joint(prim)
+            endpoints = [str(path) for relation in [joint.GetBody0Rel(), joint.GetBody1Rel()]
+                         for path in relation.GetTargets()]
+            if any(p.startswith('/World/Robot/') for p in endpoints) and any(
+                    p.startswith('/World/Faucet/') for p in endpoints):
+                connections.append(str(prim.GetPath()))
+        if connections:
+            raise RuntimeError(f'纯摩擦模式发现意外的跨对象约束：{connections}')
+        return connections
+
+    def begin(self, actual_q, actual_valve):
+        """登记已由调用方验证的双侧接触；只保存参考变换，不修改 USD。"""
+        self.assert_no_attachment()
         tcp = self.robot.forward(actual_q)
         desired = self.faucet.target(*actual_valve)
         distance, angle = pose_error(tcp, desired)
         if distance > .012 or angle > np.deg2rad(8):
             raise RuntimeError(f'抓取失败：TCP 距把手 {distance*1000:.2f} mm，姿态差 {np.rad2deg(angle):.2f}°')
-        gripper = world_pose(self.stage.GetPrimAtPath('/World/Robot/arm_r_link_gripper'))
-        handle = world_pose(self.stage.GetPrimAtPath('/World/Faucet/handle'))
-        joint = UsdPhysics.FixedJoint.Define(self.stage, self.path)
-        joint.CreateBody0Rel().SetTargets(['/World/Robot/arm_r_link_gripper'])
-        joint.CreateBody1Rel().SetTargets(['/World/Faucet/handle'])
-        set_joint_frame(joint, 0, inverse(gripper) @ tcp)
-        set_joint_frame(joint, 1, inverse(handle) @ tcp)
-        joint.CreateExcludeFromArticulationAttr(True)
-        # 固定抓取约束也必须允许两端接触，不能隐式关闭夹爪与把手碰撞。
-        joint.CreateCollisionEnabledAttr(True)
-        joint.CreateBreakForceAttr(1000.)
-        joint.CreateBreakTorqueAttr(100.)
+        self.reference = inverse(tcp) @ self.faucet.handle(*actual_valve)
         self.active = True
-        return {'capture_position_error_mm': distance*1000, 'capture_rotation_error_deg': float(np.rad2deg(angle))}
+        return {'capture_position_error_mm': distance*1000, 'capture_rotation_error_deg': float(np.rad2deg(angle)),
+                'attachment_joint_created': False}
+
+    def observe(self, actual_q, actual_valve):
+        """返回从抓取开始累计的相对滑移（mm、度）；绝不纠正把手运动。"""
+        if not self.active:
+            return {'slip_mm': 0., 'slip_deg': 0.}
+        current = inverse(self.robot.forward(actual_q)) @ self.faucet.handle(*actual_valve)
+        distance, angle = pose_error(current, self.reference)
+        self.max_slip_mm = max(self.max_slip_mm, distance*1000.)
+        self.max_slip_deg = max(self.max_slip_deg, float(np.rad2deg(angle)))
+        return {'slip_mm': distance*1000., 'slip_deg': float(np.rad2deg(angle))}
 
     def release(self):
-        """解除抓取，让右臂可以独立撤离。"""
-        if self.active:
-            self.stage.RemovePrim(self.path)
-            self.active = False
+        """清除逻辑夹持状态；真正释放由活动手指张开形成。"""
+        self.active = False

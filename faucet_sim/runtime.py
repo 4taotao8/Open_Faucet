@@ -14,7 +14,7 @@ from .geometry import world_pose, pose_error
 from .kinematics import RightArmKinematics, FaucetKinematics
 from .planning import plan, save_plan
 from .scene import build_scene
-from .grasp import IdealGrasp
+from .grasp import FrictionGrasp
 from .visuals import SimulationDisplay
 from .collision import ContactMonitor
 
@@ -29,6 +29,8 @@ class FaucetSimulation:
         self.output.mkdir(parents=True, exist_ok=True)
         self.headless, self.realtime = headless, realtime
         self.capture_frames, self.capture_jobs = capture_frames, []
+        # 可选录制观察者只读取状态和控制摄影机；普通仿真无需构造。
+        self.observer = None
         source = build_scene(config, self.output / 'scene.usda')
         self.robot_model = RightArmKinematics(source, world_pose(source.GetPrimAtPath(
             '/World/Robot/arm_base_link')), config['tcp_in_gripper'])
@@ -68,16 +70,17 @@ class FaucetSimulation:
         efforts = np.array([130. if name.endswith('_1') else 70. if name.endswith(('_2', '_3', '_4')) else 12.
                             for name in self.robot.dof_names])
         # 活动手指使用柔顺的小力矩驱动，在把手表面受阻后停止，不能强压入模型。
-        kps[self.finger_index], kds[self.finger_index] = 4., 1.
-        efforts[self.finger_index] = .3
+        kps[self.finger_index], kds[self.finger_index] = config['finger_stiffness'], config['finger_damping']
+        efforts[self.finger_index] = config['finger_max_effort']
         self.robot.get_articulation_controller().set_gains(kps=kps, kds=kds)
         self.robot.get_articulation_controller().set_max_efforts(efforts)
         # 只在初始化时设置一次状态；正常运行始终使用动力学驱动，禁止逐帧瞬移。
         self.robot.set_joint_positions(self.command)
         self.robot.set_joint_velocities(np.zeros(n))
         self.valve.set_joint_positions(np.zeros(self.valve.num_dof))
-        self.hold_valve(np.zeros(2))
-        self.grasp = IdealGrasp(self.stage, self.robot_model, self.faucet_model)
+        self.passive_valve()
+        self.grasp = FrictionGrasp(self.stage, self.robot_model, self.faucet_model)
+        self.grasp.assert_no_attachment()
         self.step_count = 0
         self.sim_time = 0.
         self.records, self.endpoints = [], []
@@ -88,16 +91,10 @@ class FaucetSimulation:
             self.step()
         print('[物理] 初始化完成，右臂关节：' + ', '.join(self.robot_model.names), flush=True)
 
-    def hold_valve(self, angles):
-        """非操作阶段保持实际阀位；输入为按名称排序的两个弧度角。"""
-        self.valve.get_articulation_controller().set_gains(kps=np.full(self.valve.num_dof, 20.),
-                                                         kds=np.full(self.valve.num_dof, .3))
-        self.valve.apply_action(ArticulationAction(joint_positions=angles, joint_indices=self.valve_indices))
-
     def passive_valve(self):
-        """操作期间关闭龙头位置驱动；把手运动来自右臂抓取约束传力。"""
+        """所有阶段关闭龙头位置刚度，只保留配置中的被动阻尼。"""
         self.valve.get_articulation_controller().set_gains(kps=np.zeros(self.valve.num_dof),
-                                                         kds=np.full(self.valve.num_dof, .001))
+                                                         kds=np.full(self.valve.num_dof, self.config['faucet_joint_damping']))
 
     def measured(self):
         """返回物理反馈：右臂七轴角度、龙头左右角和抬升角（弧度）。"""
@@ -115,6 +112,8 @@ class FaucetSimulation:
         self.contacts.sample()
         self.step_count += 1
         self.sim_time += self.config['physics_dt']
+        if self.observer is not None:
+            self.observer.after_step(self)
         if self.realtime:
             time.sleep(max(0., self.config['physics_dt'] - (time.monotonic() - start)))
 
@@ -124,16 +123,20 @@ class FaucetSimulation:
         if not np.isfinite(np.r_[right, valve]).all():
             raise RuntimeError('物理状态包含 NaN/Inf')
         position, rotation = pose_error(self.robot_model.forward(right), segment.target[index])
+        bilateral = bool(self.contacts.last.get('fixed_contact_points') and
+                         self.contacts.last.get('moving_contact_points'))
         row = {'time_s': self.sim_time, 'phase': segment.name,
                'yaw_target_deg': float(np.rad2deg(segment.faucet[index, 0])),
                'lift_target_deg': float(np.rad2deg(segment.faucet[index, 1])),
                'yaw_actual_deg': float(np.rad2deg(valve[0])), 'lift_actual_deg': float(np.rad2deg(valve[1])),
                'tcp_error_mm': position*1000., 'rotation_error_deg': float(np.rad2deg(rotation)),
-               'grasp_active': self.grasp.active,
+               'grasp_active': bool(self.grasp.active and bilateral),
+               'grasp_attempt_active': self.grasp.active,
                'finger_actual_deg': float(np.rad2deg(self.robot.get_joint_positions([self.finger_index])[0]))}
         row.update({f'q{i+1}_rad': float(value) for i, value in enumerate(right)})
-        row.update(self.display.update(*valve, segment.kind, self.grasp.active))
+        row.update(self.display.update(*valve, segment.kind, row['grasp_active']))
         row.update(self.contacts.last)
+        row.update(self.grasp.observe(right, valve))
         self.records.append(row)
         # 物理执行偏离规划时停止，避免把明显失败的动画当成完成。
         if position > .05 or rotation > np.deg2rad(20):
@@ -143,6 +146,8 @@ class FaucetSimulation:
         """执行完整流程；每次操作结束测量阀角误差并验收。"""
         for segment_index, segment in enumerate(self.segments):
             print(f'[阶段] {segment.name}', flush=True)
+            if self.observer is not None:
+                self.observer.phase_start(self, segment, segment_index)
             if segment.kind == 'operate' and not self.grasp.active:
                 right, valve = self.measured()
                 finger = self.robot.get_joint_positions([self.finger_index])[0]
@@ -151,13 +156,12 @@ class FaucetSimulation:
                     raise RuntimeError('活动手指尚未完成闭合动作')
                 if not self.contacts.last.get('fixed_contact_points') or not self.contacts.last.get('moving_contact_points'):
                     raise RuntimeError('抓取失败：上下两指尚未同时接触把手')
-                self.capture = self.grasp.attach(right, valve)
+                self.capture = self.grasp.begin(right, valve)
                 self.capture['contact_points'] = self.contacts.last.get('contact_points', 0)
                 self.capture['finger_actual_deg'] = float(np.rad2deg(finger))
                 self.passive_valve()
             if segment.kind == 'release':
-                _, valve = self.measured()
-                self.hold_valve(valve)
+                # 不锁定末态；松爪后按重力、接触与阻尼运动。
                 self.grasp.release()
             for index in range(len(segment.time)):
                 self.command[self.right_indices] = segment.q[index]
@@ -190,7 +194,7 @@ class FaucetSimulation:
         final_error = np.rad2deg(actual - self.segments[-1].q[-1])
         if np.max(np.abs(final_error)) > 2.:
             raise RuntimeError('右臂未返回初始位置')
-        return {'passed': True, 'mode': 'physx_ideal_fixed_grasp', 'capture': self.capture,
+        return {'passed': True, 'mode': 'physx_friction_only', 'capture': self.capture,
                 'endpoints': self.endpoints, 'physics_steps': self.step_count,
                 'final_right_error_deg': final_error.tolist(), 'final_faucet_deg': np.rad2deg(valve).tolist(),
                 'simulation_time_s': self.sim_time,
@@ -236,6 +240,20 @@ class FaucetSimulation:
                 writer.writeheader()
                 writer.writerows(self.records)
         result.setdefault('endpoints', self.endpoints)
+        stiffness, damping = self.valve.get_articulation_controller().get_gains()
+        result.update({'mode': 'physx_friction_only', 'capture': self.capture,
+                       'grasp_audit': {'robot_faucet_attachment_joints': self.grasp.assert_no_attachment(),
+                                       'faucet_drive_stiffness': np.asarray(stiffness).tolist(),
+                                       'faucet_drive_damping': np.asarray(damping).tolist(),
+                                       'faucet_commands_after_initial_state': 0},
+                       'friction_parameters': {name: self.config[name] for name in (
+                           'contact_static_friction', 'contact_dynamic_friction', 'finger_stiffness',
+                           'finger_damping', 'finger_max_effort', 'faucet_joint_damping')},
+                       'slip': {'max_relative_translation_mm': self.grasp.max_slip_mm,
+                                'max_relative_rotation_deg': self.grasp.max_slip_deg},
+                       'contact_forces': {'max_normal_force_n': self.contacts.max_normal_force,
+                                          'max_friction_force_n': self.contacts.max_friction_force,
+                                          'total_friction_impulse_ns': self.contacts.total_friction_impulse}})
         result.setdefault('collision_check', {'enabled': True,
                           'max_penetration_mm': self.contacts.max_penetration * 1000.,
                           'handle_contact_steps': self.contacts.handle_contact_steps,

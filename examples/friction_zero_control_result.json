@@ -1,0 +1,90 @@
+{
+  "passed": false,
+  "error": "向冷水侧旋转25度 实际阀角偏差超过 2°：[ 5.35292670e+00 -3.43958206e-03]",
+  "endpoints": [
+    {
+      "phase": "打开到20度",
+      "target_deg": [
+        0.0,
+        20.0
+      ],
+      "actual_deg": [
+        -0.06974637508392334,
+        20.10469627380371
+      ],
+      "error_deg": [
+        -0.06974637665798604,
+        0.10469768042567548
+      ],
+      "passed": true
+    },
+    {
+      "phase": "向冷水侧旋转25度",
+      "target_deg": [
+        -25.0,
+        20.0
+      ],
+      "actual_deg": [
+        -19.647071838378906,
+        19.996559143066406
+      ],
+      "error_deg": [
+        5.352926701512472,
+        -0.0034395820612588986
+      ],
+      "passed": false
+    }
+  ],
+  "mode": "physx_friction_only",
+  "capture": {
+    "capture_position_error_mm": 0.6908843799883364,
+    "capture_rotation_error_deg": 0.044086728057549145,
+    "attachment_joint_created": false,
+    "contact_points": 79,
+    "finger_actual_deg": 4.959226608276367
+  },
+  "grasp_audit": {
+    "robot_faucet_attachment_joints": [],
+    "faucet_drive_stiffness": [
+      0.0,
+      0.0
+    ],
+    "faucet_drive_damping": [
+      0.0010000000474974513,
+      0.0010000000474974513
+    ],
+    "faucet_commands_after_initial_state": 0
+  },
+  "friction_parameters": {
+    "contact_static_friction": 0.0,
+    "contact_dynamic_friction": 0.0,
+    "finger_stiffness": 4.0,
+    "finger_damping": 1.0,
+    "finger_max_effort": 0.3,
+    "faucet_joint_damping": 0.001
+  },
+  "slip": {
+    "max_relative_translation_mm": 0.4478751953352752,
+    "max_relative_rotation_deg": 5.4153375670020605
+  },
+  "contact_forces": {
+    "max_normal_force_n": 69.8266833362172,
+    "max_friction_force_n": 0.0,
+    "total_friction_impulse_ns": 0.0
+  },
+  "collision_check": {
+    "enabled": true,
+    "max_penetration_mm": 0.0,
+    "handle_contact_steps": 3101,
+    "contact_pairs": [
+      [
+        "/World/Faucet/handle",
+        "/World/Robot/arm_r_link_finger"
+      ],
+      [
+        "/World/Faucet/handle",
+        "/World/Robot/arm_r_link_gripper"
+      ]
+    ]
+  }
+}

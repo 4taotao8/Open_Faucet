@@ -1,0 +1,43 @@
+{
+  "baseline": {
+    "passed": true,
+    "operations": 6,
+    "max_endpoint_error_deg": 1.794826651368784,
+    "max_relative_translation_mm": 0.47032787127518627,
+    "max_relative_rotation_deg": 1.9139196056471055,
+    "friction_impulse_ns": 145.88849529220596
+  },
+  "zero_friction_control": {
+    "passed": false,
+    "failed_operation": {
+      "phase": "向冷水侧旋转25度",
+      "target_deg": [
+        -25.0,
+        20.0
+      ],
+      "actual_deg": [
+        -19.647071838378906,
+        19.996559143066406
+      ],
+      "error_deg": [
+        5.352926701512472,
+        -0.0034395820612588986
+      ],
+      "passed": false
+    },
+    "friction_impulse_ns": 0.0
+  },
+  "audit": {
+    "robot_faucet_attachment_joints": [],
+    "faucet_drive_stiffness": [
+      0.0,
+      0.0
+    ],
+    "faucet_drive_damping": [
+      0.0010000000474974513,
+      0.0010000000474974513
+    ],
+    "faucet_commands_after_initial_state": 0
+  },
+  "interpretation": "No attachment and no faucet position commands. Contact normals and friction both transmit forces; zero friction still causes partial rotation through geometry, but misses the requested yaw."
+}
