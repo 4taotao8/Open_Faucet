@@ -4,7 +4,15 @@
 
 默认流程：**初始位置 → 把手前方 → 沿把手长度方向接近 → 上下闭爪抓取 → 抬升开阀 → 左右调温 → 调整开度 → 居中关闭 → 松爪 → 撤离 → 返回初始位置**。机器人位于龙头出水嘴朝向的前方，右肩对齐龙头；初始抓取时手指开合沿世界 Z 方向。
 
-**当前代码已改为无固定抓取约束的接触/摩擦交互。** 机器人与龙头之间不创建固定关节或其他附着约束，龙头全程没有位置刚度和逐帧位置命令。此前的 `examples/validated_result.json` 和已录制视频属于旧版理想抓取演示，不能作为当前纯摩擦版本的验证结果；新实验记录见第 10 节。
+**当前代码已改为无固定抓取约束的接触/摩擦交互。** 机器人与龙头之间不创建固定关节或其他附着约束，龙头全程没有位置刚度和逐帧位置命令。此前的 `examples/validated_result.json` 属于旧版理想抓取演示，不能作为当前纯摩擦版本的验证结果；新实验记录见第 10 节。
+
+## 仿真演示视频
+
+约 **51 秒 · 1080p · 30 fps**，包含全景、夹持特写、俯视调温和侧视开关。
+
+[![点击观看完整仿真视频](media/faucet_multiview_preview.gif)](media/faucet_multiview.mp4)
+
+[▶ 打开完整视频](media/faucet_multiview.mp4) · [下载 MP4](https://github.com/4taotao8/Open_Faucet/raw/refs/heads/main/media/faucet_multiview.mp4)
 
 ## 获取项目
 
@@ -298,4 +306,4 @@ bash run.sh --headless --quit-on-complete --capture-frames \
 
 这说明原来的夹持参数在去掉固定约束后可以完成这一组操作，精度比理想固定抓取低。零摩擦仍能带动部分转角，说明几何法向顶推/卡持也参与传力，因此准确名称是**无附着约束的接触与摩擦交互**，不能宣称“所有转动只来自切向摩擦、没有几何作用”。摩擦对于本次左右调温的跟踪精度有明显贡献。
 
-结果副本：[摩擦基线](examples/friction_baseline_result.json)、[零摩擦对照](examples/friction_zero_control_result.json)、[对比摘要](examples/friction_comparison.json)。本次没有更改摩擦基线的夹持力矩或提高摩擦系数来补偿误差。原先发布的视频仍是理想抓取版；本节的新结果来自另外实际执行的无约束实验。
+结果副本：[摩擦基线](examples/friction_baseline_result.json)、[零摩擦对照](examples/friction_zero_control_result.json)、[对比摘要](examples/friction_comparison.json)。本次没有更改摩擦基线的夹持力矩或提高摩擦系数来补偿误差。本节结果来自另外实际执行的无约束实验。
